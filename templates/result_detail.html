@@ -1,0 +1,107 @@
+{% extends "base.html" %}
+
+{% block title %}Resultado {{ test_session.pk }} | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">Resultado de la sesión {{ test_session.pk }}</h1>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Datos de la aplicación
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Código de participante:</strong> {{ test_session.participant_code }}</p>
+                    <p><strong>Edad:</strong> {{ test_session.age }}</p>
+                    <p><strong>Sexo:</strong> {{ test_session.sex }}</p>
+                    <p><strong>Nivel de escolaridad:</strong> {{ test_session.education }}</p>
+                    <p><strong>Estado civil:</strong> {{ test_session.marital_status }}</p>
+                    <p><strong>Situación ocupacional:</strong> {{ test_session.occupational_status }}</p>
+                    <p><strong>Ocupación / profesión:</strong> {{ test_session.occupation_detail|default:"-" }}</p>
+                    <p><strong>Nacionalidad:</strong> {{ test_session.nationality }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Tiempo de respuesta:</strong> {{ test_session.time_minutes|default_if_none:"-" }} minutos</p>
+                    <p><strong>¿Tuvo dificultad?</strong> {{ test_session.had_difficulty|default:"-" }}</p>
+                    <p><strong>Cuál:</strong> {{ test_session.difficulty_detail|default:"-" }}</p>
+                    <p><strong>Modalidad:</strong> {{ test_session.modality|default:"-" }}</p>
+                    <p><strong>Código evaluador:</strong> {{ test_session.evaluator_code|default:"-" }}</p>
+                    <p><strong>¿Evaluador leyó en voz alta?:</strong> {{ test_session.evaluator_read_aloud|default:"-" }}</p>
+                    <p><strong>¿Recibió ayuda?:</strong> {{ test_session.received_help|default:"-" }}</p>
+                    <p><strong>Soporte / dispositivo:</strong> {{ test_session.device|default:"-" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Corrección FAPPREN VA
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Dimensión</th>
+                            <th>Puntaje</th>
+                            <th>Nivel</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dimension in result.dimensions %}
+                            <tr>
+                                <td>{{ dimension.label }}</td>
+                                <td>{{ dimension.score|default_if_none:"" }}</td>
+                                <td>{{ dimension.level }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="row mt-3">
+                <div class="col-md-6">
+                    <p><strong>Puntaje total:</strong> {{ result.total|default_if_none:"" }}</p>
+                    <p><strong>Nivel del total:</strong> {{ result.total_level|default_if_none:"" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Dimensiones de vulnerabilidad:</strong> {{ result.areas }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-5">
+        <div class="card-header">
+            Respuestas
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-sm table-striped">
+                    <thead>
+                        <tr>
+                            <th>Ítem</th>
+                            <th>Texto</th>
+                            <th>Respuesta</th>
+                            <th>Puntaje corregido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in answer_rows %}
+                            <tr>
+                                <td>{{ row.item }}</td>
+                                <td>{{ row.text }}</td>
+                                <td>{{ row.raw }}</td>
+                                <td>{{ row.score|default_if_none:"" }}</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <a href="{% url 'results' %}" class="btn btn-secondary mb-5">Volver a resultados</a>
+{% endblock %}

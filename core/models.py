@@ -1,0 +1,125 @@
+from django.contrib.auth.models import AbstractUser
+from django.db import models
+
+
+class User(AbstractUser):
+    """
+    Application user.
+
+    is_admin controls access to:
+    - all results,
+    - XLSX export,
+    - user management.
+    """
+
+    is_admin = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.username
+
+
+YES_NO_CHOICES = [
+    ("Sí", "Sí"),
+    ("No", "No"),
+]
+
+MODE_CHOICES = [
+    ("self", "Autoadministrado"),
+    ("administered", "Administrado a sujeto"),
+]
+
+
+class TestSession(models.Model):
+    """
+    One application of the FAPPREN VA questionnaire.
+
+    It can be:
+    - self-administered by a logged-in student,
+    - administered by a logged-in student to another subject.
+    """
+
+    created_by = models.ForeignKey(
+        "core.User",
+        on_delete=models.PROTECT,
+        related_name="test_sessions",
+    )
+
+    mode = models.CharField(
+        max_length=20,
+        choices=MODE_CHOICES,
+        default="self",
+    )
+
+    # Sociodemographic data
+    participant_code = models.CharField(max_length=100)
+    age = models.PositiveIntegerField()
+    sex = models.CharField(max_length=50)
+    education = models.CharField(max_length=100)
+    marital_status = models.CharField(max_length=100)
+    occupational_status = models.CharField(max_length=100)
+    occupation_detail = models.CharField(max_length=255, blank=True)
+    nationality = models.CharField(max_length=100)
+
+    # Application data
+    time_minutes = models.PositiveIntegerField(null=True, blank=True)
+    had_difficulty = models.CharField(
+        max_length=10,
+        choices=YES_NO_CHOICES,
+        blank=True,
+    )
+    difficulty_detail = models.TextField(blank=True)
+
+    # Modality data
+    modality = models.CharField(max_length=100, blank=True)
+    evaluator_code = models.CharField(max_length=100, blank=True)
+    evaluator_read_aloud = models.CharField(
+        max_length=10,
+        choices=YES_NO_CHOICES,
+        blank=True,
+    )
+    received_help = models.CharField(
+        max_length=10,
+        choices=YES_NO_CHOICES,
+        blank=True,
+    )
+    device = models.CharField(max_length=100, blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"{self.participant_code} ({self.created_at:%Y-%m-%d %H:%M})"
+
+    def answers_dict(self):
+        """
+        Returns:
+            {item_number: raw_value}
+        Missing items are absent from the dictionary.
+        """
+        return {answer.item_number: answer.value for answer in self.answers.all()}
+
+
+class Answer(models.Model):
+    """
+    Raw answer to one item.
+
+    Items 1-39: 1 to 4.
+    Item 40: 0 to 9.
+    """
+
+    session = models.ForeignKey(
+        TestSession,
+        on_delete=models.CASCADE,
+        related_name="answers",
+    )
+    item_number = models.PositiveIntegerField()
+    value = models.PositiveIntegerField()
+
+    class Meta:
+        unique_together = ("session", "item_number")
+        ordering = ["item_number"]
+
+    def __str__(self):
+        return f"Item {self.item_number}: {self.value}"

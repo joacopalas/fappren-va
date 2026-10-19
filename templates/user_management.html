@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Usuarios | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">Gestión de usuarios</h1>
+
+    <div class="table-responsive">
+        <table class="table table-striped align-middle">
+            <thead>
+                <tr>
+                    <th>Usuario</th>
+                    <th>Nombre</th>
+                    <th>Correo</th>
+                    <th>Rol</th>
+                    <th>Acción</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for app_user in users %}
+                    <tr>
+                        <td>{{ app_user.username }}</td>
+                        <td>{{ app_user.first_name|default:"-" }} {{ app_user.last_name|default:"" }}</td>
+                        <td>{{ app_user.email|default:"-" }}</td>
+                        <td>
+                            {% if app_user.is_admin %}
+                                <span class="badge bg-success">Administrador</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Estudiante</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <form method="post" action="{% url 'toggle_admin' app_user.pk %}">
+                                {% csrf_token %}
+                                {% if app_user.is_admin %}
+                                    <button type="submit" class="btn btn-sm btn-outline-warning">
+                                        Qitar administrador
+                                    </button>
+                                {% else %}
+                                    <button type="submit" class="btn btn-sm btn-outline-success">
+                                        Hacer administrador
+                                    </button>
+                                {% endif %}
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}{{ title }} | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">{{ title }}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        {{ form.mode }}
+
+        {{ form.non_field_errors }}
+
+        <div class="card mb-4">
+            <div class="card-header">
+                Datos sociodemográficos y de aplicación
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for field in form.socio_fields %}
+                        <div class="col-md-6 mb-3">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger">{{ field.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                Ítems del inventario
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Ítems 1–39: seleccione una opción de respuesta.
+                    Ítem 40: indique la cantidad de aspectos marcados (0 a 9).
+                </p>
+
+                <div class="row">
+                    {% for field in form.item_fields %}
+                        <div class="col-lg-6 mb-3">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger">{{ field.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary mb-5">Guardar respuestas</button>
+    </form>
+{% endblock %}

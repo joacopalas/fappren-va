@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Inicio | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="mb-4">Panel principal</h1>
+
+    <div class="row g-4">
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Autoadministrarme el test</h2>
+                    <p class="card-text">
+                        Completar el inventario FAPPREN VA como participante.
+                    </p>
+                    <a href="{% url 'test_self' %}" class="btn btn-primary">Comenzar</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Administrar test a un sujeto</h2>
+                    <p class="card-text">
+                        Registrar respuestas de otra persona participante.
+                    </p>
+                    <a href="{% url 'test_administer' %}" class="btn btn-primary">Administrar</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
+                    <h2 class="h5 card-title">Ver resultados</h2>
+                    <p class="card-text">
+                        {% if user.is_admin %}
+                            Ver todos los resultados cargados en el sistema.
+                        {% else %}
+                            Ver los resultados de sus propias aplicaciones.
+                        {% endif %}
+                    </p>
+                    <a href="{% url 'results' %}" class="btn btn-secondary">Ver resultados</a>
+                </div>
+            </div>
+        </div>
+
+        {% if user.is_admin %}
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100 border-primary">
+                    <div class="card-body">
+                        <h2 class="h5 card-title">Gestión de usuarios</h2>
+                        <p class="card-text">
+                            Otorgar o quitar permisos de administrador.
+                        </p>
+                        <a href="{% url 'user_management' %}" class="btn btn-outline-primary">Gestionar usuarios</a>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 col-xl-4">
+                <div class="card h-100 border-primary">
+                    <div class="card-body">
+                        <h2 class="h5 card-title">Exportar resultados</h2>
+                        <p class="card-text">
+                            Descargar todos los resultados en formato XLSX, hoja «Resultados».
+                        </p>
+                        <a href="{% url 'export_xlsx' %}" class="btn btn-outline-primary">Exportar XLSX</a>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endblock %}

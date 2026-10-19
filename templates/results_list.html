@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block title %}Resultados | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">Resultados</h1>
+
+    {% if rows %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Sesión</th>
+                        <th>Código participante</th>
+                        <th>Fecha</th>
+                        <th>Usuario</th>
+                        <th>Modalidad interna</th>
+                        <th>Total</th>
+                        <th>Nivel total</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in rows %}
+                        <tr>
+                            <td>{{ row.obj.pk }}</td>
+                            <td>{{ row.obj.participant_code }}</td>
+                            <td>{{ row.obj.created_at|date:"Y-m-d H:i" }}</td>
+                            <td>{{ row.obj.created_by.username }}</td>
+                            <td>{{ row.obj.get_mode_display }}</td>
+                            <td>{{ row.result.total|default_if_none:"" }}</td>
+                            <td>{{ row.result.total_level|default_if_none:"" }}</td>
+                            <td>
+                                <a href="{% url 'result_detail' row.obj.pk %}" class="btn btn-sm btn-primary">
+                                    Ver
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            Todavía no hay resultados para mostrar.
+        </div>
+    {% endif %}
+{% endblock %}
