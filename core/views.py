@@ -36,6 +36,10 @@ def admin_required(view_func):
     return _wrapped_view
 
 
+def healthz(request):
+    return HttpResponse("ok")
+
+
 @login_required
 def home(request):
     return render(request, "home.html")

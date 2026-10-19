@@ -59,7 +59,7 @@ WSGI_APPLICATION = "fappren.wsgi.application"
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "data" / "db.sqlite3",
+        "NAME": os.getenv("SQLITE_PATH", str(BASE_DIR / "data" / "db.sqlite3")),
     }
 }
 
@@ -94,5 +94,5 @@ LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "home"
 LOGOUT_REDIRECT_URL = "login"
 
-# Ensure data directory exists locally and in container image.
-(BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
+# Ensure the SQLite database directory exists locally and in the container image.
+Path(DATABASES["default"]["NAME"]).parent.mkdir(parents=True, exist_ok=True)
