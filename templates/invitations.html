@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+
+{% block title %}Enlaces para participantes | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <div class="d-flex flex-wrap justify-content-between align-items-center gap-3 mb-4">
+        <div>
+            <h1 class="h3 mb-1">Enlaces para participantes</h1>
+            <p class="text-muted mb-0">
+                Genere un enlace para que una persona no registrada responda el
+                test. Cada enlace puede utilizarse una sola vez y las respuestas
+                quedan asociadas a su cuenta.
+            </p>
+        </div>
+        <form method="post">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-primary">
+                Generar nuevo enlace
+            </button>
+        </form>
+    </div>
+
+    {% if invitations %}
+        <div class="table-responsive">
+            <table class="table table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>Creado</th>
+                        {% if user.is_admin %}<th>Usuario</th>{% endif %}
+                        <th>Estado</th>
+                        <th>Sesión</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for invitation in invitations %}
+                        <tr>
+                            <td>{{ invitation.created_at|date:"Y-m-d H:i" }}</td>
+                            {% if user.is_admin %}
+                                <td>{{ invitation.created_by.username }}</td>
+                            {% endif %}
+                            <td>
+                                {% if invitation.is_used %}
+                                    <span class="badge text-bg-secondary">
+                                        Utilizado {{ invitation.used_at|date:"Y-m-d H:i" }}
+                                    </span>
+                                {% else %}
+                                    <span class="badge text-bg-success">Pendiente</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if invitation.session %}
+                                    <a href="{% url 'result_detail' invitation.session.pk %}">
+                                        Ver resultado
+                                    </a>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'invitation_detail' invitation.pk %}" class="btn btn-sm btn-outline-primary">
+                                    Ver enlace
+                                </a>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="alert alert-info">
+            Todavía no generó ningún enlace para participantes.
+        </div>
+    {% endif %}
+{% endblock %}

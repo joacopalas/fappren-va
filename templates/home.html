@@ -33,6 +33,20 @@
         <div class="col-md-6 col-xl-4">
             <div class="card h-100">
                 <div class="card-body">
+                    <h2 class="h5 card-title">Compartir enlace con un participante</h2>
+                    <p class="card-text">
+                        Generar un enlace de un solo uso para que una persona no
+                        registrada responda el test. Las respuestas quedarán
+                        asociadas a su cuenta.
+                    </p>
+                    <a href="{% url 'invitation_list' %}" class="btn btn-outline-primary">Generar enlace</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
                     <h2 class="h5 card-title">Ver resultados</h2>
                     <p class="card-text">
                         {% if user.is_admin %}

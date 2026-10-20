@@ -5,6 +5,13 @@
 {% block content %}
     <h1 class="h3 mb-4">{{ title }}</h1>
 
+    {% if is_public %}
+        <div class="alert alert-info">
+            Este enlace puede utilizarse una sola vez. Al enviar sus respuestas,
+            la persona que le compartió el enlace podrá ver el resultado.
+        </div>
+    {% endif %}
+
     <form method="post">
         {% csrf_token %}
         {{ form.mode }}
@@ -108,7 +115,9 @@
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary mb-5">Guardar respuestas</button>
+        <button type="submit" class="btn btn-primary mb-5">
+            {% if is_public %}Enviar respuestas{% else %}Guardar respuestas{% endif %}
+        </button>
     </form>
 
     <script>

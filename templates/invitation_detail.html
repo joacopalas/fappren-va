@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Enlace para participante | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">Enlace para participante</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            {% if invitation.is_used %}
+                <div class="alert alert-secondary mb-3">
+                    Este enlace ya fue utilizado
+                    {% if invitation.used_at %}
+                        el {{ invitation.used_at|date:"Y-m-d H:i" }}
+                    {% endif %}.
+                </div>
+                {% if invitation.session %}
+                    <p class="mb-3">
+                        Las respuestas quedaron registradas en la sesión
+                        {{ invitation.session.pk }}.
+                    </p>
+                    <a href="{% url 'result_detail' invitation.session.pk %}" class="btn btn-primary">
+                        Ver resultado
+                    </a>
+                {% endif %}
+            {% else %}
+                <p>
+                    Comparta este enlace con la persona que responderá el test.
+                    El enlace puede utilizarse una sola vez.
+                </p>
+
+                <label for="public-url" class="form-label">Enlace</label>
+                <div class="input-group mb-3">
+                    <input
+                        type="text"
+                        class="form-control"
+                        id="public-url"
+                        value="{{ public_url }}"
+                        readonly
+                    >
+                    <button type="button" class="btn btn-outline-secondary" id="copy-url">
+                        Copiar
+                    </button>
+                </div>
+
+                <p class="text-muted mb-0">
+                    Las respuestas quedarán asociadas a su cuenta y podrá verlas
+                    en la sección Resultados.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <a href="{% url 'invitation_list' %}" class="btn btn-secondary mb-5">
+        Volver a enlaces
+    </a>
+
+    {% if not invitation.is_used %}
+        <script>
+            document.addEventListener("DOMContentLoaded", function () {
+                const urlInput = document.getElementById("public-url");
+                const copyButton = document.getElementById("copy-url");
+
+                if (!urlInput || !copyButton) {
+                    return;
+                }
+
+                copyButton.addEventListener("click", async function () {
+                    try {
+                        await navigator.clipboard.writeText(urlInput.value);
+                        copyButton.textContent = "Copiado";
+                    } catch (error) {
+                        urlInput.select();
+                        document.execCommand("copy");
+                        copyButton.textContent = "Copiado";
+                    }
+                });
+            });
+        </script>
+    {% endif %}
+{% endblock %}

@@ -37,6 +37,27 @@ urlpatterns = [
         {"mode": "administered"},
         name="test_administer_form",
     ),
+    path("invitations/", views.invitation_list, name="invitation_list"),
+    path(
+        "invitations/<int:pk>/",
+        views.invitation_detail,
+        name="invitation_detail",
+    ),
+    path(
+        "p/<uuid:token>/",
+        views.public_consent,
+        name="public_consent",
+    ),
+    path(
+        "p/<uuid:token>/form/",
+        views.public_test_form,
+        name="public_test_form",
+    ),
+    path(
+        "p/<uuid:token>/gracias/",
+        views.public_test_complete,
+        name="public_test_complete",
+    ),
     path("results/", views.results_list, name="results"),
     path("results/<int:pk>/", views.result_detail, name="result_detail"),
     path("administration/users/", views.user_management, name="user_management"),

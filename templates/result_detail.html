@@ -30,6 +30,9 @@
                     <p><strong>¿Evaluador leyó en voz alta?:</strong> {{ test_session.evaluator_read_aloud|default:"-" }}</p>
                     <p><strong>¿Recibió ayuda?:</strong> {{ test_session.received_help|default:"-" }}</p>
                     <p><strong>Soporte / dispositivo:</strong> {{ test_session.device|default:"-" }}</p>
+                    {% if test_session.invitation %}
+                        <p><strong>Origen:</strong> Enlace para participante</p>
+                    {% endif %}
                 </div>
             </div>
         </div>

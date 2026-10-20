@@ -14,6 +14,7 @@
                         <th>Código participante</th>
                         <th>Fecha</th>
                         <th>Usuario</th>
+                        <th>Origen</th>
                         <th>Modalidad interna</th>
                         <th>Total</th>
                         <th>Nivel total</th>
@@ -27,6 +28,9 @@
                             <td>{{ row.obj.participant_code }}</td>
                             <td>{{ row.obj.created_at|date:"Y-m-d H:i" }}</td>
                             <td>{{ row.obj.created_by.username }}</td>
+                            <td>
+                                {% if row.obj.invitation %}Enlace{% else %}Directo{% endif %}
+                            </td>
                             <td>{{ row.obj.get_mode_display }}</td>
                             <td>{{ row.result.total|default_if_none:"" }}</td>
                             <td>{{ row.result.total_level|default_if_none:"" }}</td>

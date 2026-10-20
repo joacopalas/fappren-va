@@ -5,15 +5,17 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+from django.db import transaction
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
 from .consent import CONSENT_TEXTS
 from .forms import ConsentForm, ITEM_40_LABELS, RegisterForm, TestForm
-from .models import Answer, TestSession, User
+from .models import Answer, TestInvitation, TestSession, User
 from .scoring import (
     ITEM_TEXTS,
     OPTION_LABELS,
@@ -106,6 +108,48 @@ def _test_started_session_key(mode: str) -> str:
     return f"fappren_test_started_{mode}"
 
 
+def _public_consent_session_key(token) -> str:
+    return f"fappren_public_consent_{token}"
+
+
+def _public_started_session_key(token) -> str:
+    return f"fappren_public_started_{token}"
+
+
+def _elapsed_minutes(request, started_key):
+    started_at = request.session.get(started_key)
+    if started_at is None:
+        return None
+
+    elapsed_seconds = max(0, timezone.now().timestamp() - started_at)
+    return max(1, round(elapsed_seconds / 60))
+
+
+def _save_answers(session_obj, data):
+    for item_number in range(1, 40):
+        raw_value = data.get(f"item_{item_number}")
+        if raw_value not in (None, ""):
+            Answer.objects.create(
+                session=session_obj,
+                item_number=item_number,
+                value=int(raw_value),
+            )
+
+    item_40_selected = data.get("item_40") or []
+    item_40_other = data.get("item_40_other", "")
+    Answer.objects.create(
+        session=session_obj,
+        item_number=40,
+        value=len(item_40_selected),
+        selected_options=item_40_selected,
+        other_detail=item_40_other if "otros" in item_40_selected else "",
+    )
+
+
+def _invalid_public_link(request):
+    return render(request, "public_link_invalid.html", status=410)
+
+
 @login_required
 def informed_consent(request, mode: str):
     if mode not in CONSENT_TEXTS:
@@ -159,12 +203,9 @@ def take_test(request, mode: str):
         if form.is_valid():
             data = form.cleaned_data
 
-            started_at = request.session.get(_test_started_session_key(mode))
-            if started_at is None:
-                time_minutes = None
-            else:
-                elapsed_seconds = max(0, timezone.now().timestamp() - started_at)
-                time_minutes = max(1, round(elapsed_seconds / 60))
+            time_minutes = _elapsed_minutes(
+                request, _test_started_session_key(mode)
+            )
 
             session_obj = TestSession.objects.create(
                 created_by=request.user,
@@ -187,24 +228,7 @@ def take_test(request, mode: str):
                 device=data.get("device", ""),
             )
 
-            for item_number in range(1, 40):
-                raw_value = data.get(f"item_{item_number}")
-                if raw_value not in (None, ""):
-                    Answer.objects.create(
-                        session=session_obj,
-                        item_number=item_number,
-                        value=int(raw_value),
-                    )
-
-            item_40_selected = data.get("item_40") or []
-            item_40_other = data.get("item_40_other", "")
-            Answer.objects.create(
-                session=session_obj,
-                item_number=40,
-                value=len(item_40_selected),
-                selected_options=item_40_selected,
-                other_detail=item_40_other if "otros" in item_40_selected else "",
-            )
+            _save_answers(session_obj, data)
 
             request.session.pop(_consent_session_key(mode), None)
             request.session.pop(_test_started_session_key(mode), None)
@@ -226,8 +250,161 @@ def take_test(request, mode: str):
 
 
 @login_required
+def invitation_list(request):
+    if request.method == "POST":
+        invitation = TestInvitation.objects.create(created_by=request.user)
+        return redirect("invitation_detail", pk=invitation.pk)
+
+    invitations = TestInvitation.objects.select_related("created_by", "session")
+    if not request.user.is_admin:
+        invitations = invitations.filter(created_by=request.user)
+
+    return render(request, "invitations.html", {"invitations": invitations})
+
+
+@login_required
+def invitation_detail(request, pk: int):
+    invitation = get_object_or_404(TestInvitation, pk=pk)
+
+    if not request.user.is_admin and invitation.created_by_id != request.user.id:
+        return HttpResponseForbidden("No tiene permiso para ver este enlace.")
+
+    public_url = request.build_absolute_uri(
+        reverse("public_consent", args=[invitation.token])
+    )
+
+    return render(
+        request,
+        "invitation_detail.html",
+        {
+            "invitation": invitation,
+            "public_url": public_url,
+        },
+    )
+
+
+def public_consent(request, token):
+    invitation = TestInvitation.objects.filter(
+        token=token, used_at__isnull=True
+    ).first()
+    if invitation is None:
+        return _invalid_public_link(request)
+
+    if request.method == "POST":
+        form = ConsentForm(request.POST)
+        if form.is_valid():
+            request.session[_public_consent_session_key(token)] = True
+            return redirect("public_test_form", token=token)
+    else:
+        form = ConsentForm()
+
+    return render(
+        request,
+        "consent.html",
+        {
+            "form": form,
+            "consent_paragraphs": CONSENT_TEXTS["administered"],
+            "is_public": True,
+        },
+    )
+
+
+def public_test_form(request, token):
+    invitation = TestInvitation.objects.filter(
+        token=token, used_at__isnull=True
+    ).first()
+    if invitation is None:
+        return _invalid_public_link(request)
+
+    if not request.session.get(_public_consent_session_key(token)):
+        messages.warning(
+            request,
+            "Debe aceptar el consentimiento informado para continuar.",
+        )
+        return redirect("public_consent", token=token)
+
+    if request.method == "POST":
+        form = TestForm(request.POST, public=True)
+        if form.is_valid():
+            data = form.cleaned_data
+            time_minutes = _elapsed_minutes(
+                request, _public_started_session_key(token)
+            )
+
+            with transaction.atomic():
+                # Claim the link atomically so a single-use link cannot be
+                # submitted twice, even with concurrent requests.
+                claimed = TestInvitation.objects.filter(
+                    token=token, used_at__isnull=True
+                ).update(used_at=timezone.now())
+                if not claimed:
+                    return _invalid_public_link(request)
+
+                invitation.refresh_from_db()
+
+                session_obj = TestSession.objects.create(
+                    created_by=invitation.created_by,
+                    mode="administered",
+                    participant_code=data["participant_code"],
+                    age=data["age"],
+                    sex=data["sex"],
+                    education=data["education"],
+                    marital_status=data["marital_status"],
+                    occupational_status=data["occupational_status"],
+                    occupation_detail=data.get("occupation_detail", ""),
+                    nationality=data["nationality"],
+                    time_minutes=time_minutes,
+                    had_difficulty=data.get("had_difficulty", ""),
+                    difficulty_detail=data.get("difficulty_detail", ""),
+                    modality="Autoadministración remota",
+                    received_help=data.get("received_help", ""),
+                    device=data.get("device", ""),
+                )
+                _save_answers(session_obj, data)
+
+                invitation.session = session_obj
+                invitation.save(update_fields=["session"])
+
+            request.session.pop(_public_consent_session_key(token), None)
+            request.session.pop(_public_started_session_key(token), None)
+
+            return redirect("public_test_complete", token=token)
+    else:
+        request.session[_public_started_session_key(token)] = (
+            timezone.now().timestamp()
+        )
+        form = TestForm(public=True, initial={"mode": "administered"})
+
+    return render(
+        request,
+        "test_form.html",
+        {
+            "form": form,
+            "title": "Test FAPPREN VA",
+            "is_public": True,
+        },
+    )
+
+
+def public_test_complete(request, token):
+    invitation = TestInvitation.objects.filter(
+        token=token, used_at__isnull=False
+    ).first()
+    if invitation is None:
+        return _invalid_public_link(request)
+
+    return render(
+        request,
+        "public_test_complete.html",
+        {"invitation": invitation},
+    )
+
+
+@login_required
 def results_list(request):
-    sessions = TestSession.objects.prefetch_related("answers").select_related("created_by")
+    sessions = TestSession.objects.prefetch_related("answers").select_related(
+        "created_by", "invitation"
+    )
 
     if not request.user.is_admin:
         sessions = sessions.filter(created_by=request.user)
@@ -275,7 +452,7 @@ def result_detail(request, pk: int):
         elif raw_value is None:
             raw_display = ""
         else:
-            raw_display = f"{raw_value} ({OPTION_LABELS.get(str(raw_value), '')})"
+            raw_display = f"{OPTION_LABELS.get(str(raw_value), '')}"
 
         answer_rows.append(
             {

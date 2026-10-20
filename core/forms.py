@@ -128,6 +128,13 @@ class TestForm(forms.Form):
         "device",
     ]
 
+    PUBLIC_APP_FIELDS = [
+        "had_difficulty",
+        "difficulty_detail",
+        "received_help",
+        "device",
+    ]
+
     mode = forms.ChoiceField(
         choices=[
             ("self", "Autoadministrado"),
@@ -230,8 +237,17 @@ class TestForm(forms.Form):
         widget=forms.Select(attrs={"class": "form-select"}),
     )
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, public=False, **kwargs):
         super().__init__(*args, **kwargs)
+
+        if public:
+            # Keep only the application fields that the participant can answer.
+            for field_name in self.APP_FIELDS:
+                if field_name not in self.PUBLIC_APP_FIELDS:
+                    self.fields.pop(field_name, None)
+            self.fields["received_help"].label = (
+                "¿Recibió ayuda de otra persona para responder?"
+            )
 
         for item_number in range(1, 40):
             self.fields[f"item_{item_number}"] = forms.ChoiceField(
@@ -271,7 +287,7 @@ class TestForm(forms.Form):
 
     @property
     def app_fields(self):
-        return [self[name] for name in self.APP_FIELDS]
+        return [self[name] for name in self.APP_FIELDS if name in self.fields]
 
     @property
     def item_fields(self):
