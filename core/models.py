@@ -106,7 +106,7 @@ class Answer(models.Model):
     Raw answer to one item.
 
     Items 1-39: 1 to 4.
-    Item 40: 0 to 9.
+    Item 40: 0 to 3 (3 means "3 o más").
     """
 
     session = models.ForeignKey(

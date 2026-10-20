@@ -13,7 +13,7 @@
 
         <div class="card mb-4">
             <div class="card-header">
-                Datos sociodemográficos y de aplicación
+                Datos sociodemográficos
             </div>
             <div class="card-body">
                 <div class="row">
@@ -37,12 +37,32 @@
             <div class="card-body">
                 <p class="text-muted">
                     Ítems 1–39: seleccione una opción de respuesta.
-                    Ítem 40: indique la cantidad de aspectos marcados (0 a 9).
+                    Ítem 40: indique la cantidad de aspectos marcados (0, 1, 2 o 3 o más).
+                    Todos los ítems son obligatorios.
                 </p>
 
                 <div class="row">
                     {% for field in form.item_fields %}
                         <div class="col-lg-6 mb-3">
+                            {{ field.label_tag }}
+                            {{ field }}
+                            {% if field.errors %}
+                                <div class="text-danger">{{ field.errors|striptags }}</div>
+                            {% endif %}
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-header">
+                Datos de aplicación
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for field in form.app_fields %}
+                        <div class="col-md-6 mb-3">
                             {{ field.label_tag }}
                             {{ field }}
                             {% if field.errors %}

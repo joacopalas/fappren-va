@@ -177,7 +177,7 @@ def result_detail(request, pk: int):
         if raw_value is None:
             raw_display = ""
         elif item_number == 40:
-            raw_display = str(raw_value)
+            raw_display = "3 o más" if raw_value >= 3 else str(raw_value)
         else:
             raw_display = f"{raw_value} ({OPTION_LABELS.get(str(raw_value), '')})"
 

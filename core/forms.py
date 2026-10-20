@@ -58,14 +58,20 @@ YES_NO_CHOICES = [
 ]
 
 ITEM_OPTIONS = [
-    ("", "Sin respuesta"),
+    ("", "Seleccionar"),
     ("1", "1 - En desacuerdo"),
     ("2", "2 - Parcialmente en desacuerdo"),
     ("3", "3 - Algo de acuerdo"),
     ("4", "4 - De acuerdo"),
 ]
 
-ITEM_40_OPTIONS = [("", "Sin respuesta")] + [(str(i), str(i)) for i in range(0, 10)]
+ITEM_40_OPTIONS = [
+    ("", "Seleccionar"),
+    ("0", "0"),
+    ("1", "1"),
+    ("2", "2"),
+    ("3", "3 o más"),
+]
 
 
 def with_blank(choices):
@@ -93,6 +99,9 @@ class TestForm(forms.Form):
         "occupational_status",
         "occupation_detail",
         "nationality",
+    ]
+
+    APP_FIELDS = [
         "time_minutes",
         "had_difficulty",
         "difficulty_detail",
@@ -220,20 +229,24 @@ class TestForm(forms.Form):
             self.fields[f"item_{item_number}"] = forms.ChoiceField(
                 label=f"{item_number}. {ITEM_TEXTS[item_number]}",
                 choices=ITEM_OPTIONS,
-                required=False,
+                required=True,
                 widget=forms.Select(attrs={"class": "form-select"}),
             )
 
         self.fields["item_40"] = forms.ChoiceField(
             label=f"40. {ITEM_TEXTS[40]}",
             choices=ITEM_40_OPTIONS,
-            required=False,
+            required=True,
             widget=forms.Select(attrs={"class": "form-select"}),
         )
 
     @property
     def socio_fields(self):
         return [self[name] for name in self.SOCIO_FIELDS]
+
+    @property
+    def app_fields(self):
+        return [self[name] for name in self.APP_FIELDS]
 
     @property
     def item_fields(self):
