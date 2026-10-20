@@ -7,6 +7,7 @@ from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
@@ -101,6 +102,10 @@ def _test_form_url_name(mode: str) -> str:
     return "test_self_form" if mode == "self" else "test_administer_form"
 
 
+def _test_started_session_key(mode: str) -> str:
+    return f"fappren_test_started_{mode}"
+
+
 @login_required
 def informed_consent(request, mode: str):
     if mode not in CONSENT_TEXTS:
@@ -154,6 +159,13 @@ def take_test(request, mode: str):
         if form.is_valid():
             data = form.cleaned_data
 
+            started_at = request.session.get(_test_started_session_key(mode))
+            if started_at is None:
+                time_minutes = None
+            else:
+                elapsed_seconds = max(0, timezone.now().timestamp() - started_at)
+                time_minutes = max(1, round(elapsed_seconds / 60))
+
             session_obj = TestSession.objects.create(
                 created_by=request.user,
                 mode=mode,
@@ -165,7 +177,7 @@ def take_test(request, mode: str):
                 occupational_status=data["occupational_status"],
                 occupation_detail=data.get("occupation_detail", ""),
                 nationality=data["nationality"],
-                time_minutes=data.get("time_minutes"),
+                time_minutes=time_minutes,
                 had_difficulty=data.get("had_difficulty", ""),
                 difficulty_detail=data.get("difficulty_detail", ""),
                 modality=data.get("modality", ""),
@@ -195,10 +207,12 @@ def take_test(request, mode: str):
             )
 
             request.session.pop(_consent_session_key(mode), None)
+            request.session.pop(_test_started_session_key(mode), None)
 
             messages.success(request, "Respuestas guardadas correctamente.")
             return redirect("result_detail", pk=session_obj.pk)
     else:
+        request.session[_test_started_session_key(mode)] = timezone.now().timestamp()
         form = TestForm(initial=initial)
 
     return render(

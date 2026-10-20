@@ -59,10 +59,10 @@ YES_NO_CHOICES = [
 
 ITEM_OPTIONS = [
     ("", "Seleccionar"),
-    ("0", "0 - En desacuerdo"),
-    ("1", "1 - Parcialmente en desacuerdo"),
-    ("2", "2 - Algo de acuerdo"),
-    ("3", "3 - De acuerdo"),
+    ("0", "En desacuerdo"),
+    ("1", "Parcialmente en desacuerdo"),
+    ("2", "Algo de acuerdo"),
+    ("3", "De acuerdo"),
 ]
 
 ITEM_40_CHOICES = [
@@ -119,7 +119,6 @@ class TestForm(forms.Form):
     ]
 
     APP_FIELDS = [
-        "time_minutes",
         "had_difficulty",
         "difficulty_detail",
         "modality",
@@ -186,13 +185,6 @@ class TestForm(forms.Form):
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
 
-    time_minutes = forms.IntegerField(
-        label="Tiempo de respuesta (minutos)",
-        required=False,
-        min_value=0,
-        widget=forms.NumberInput(attrs={"class": "form-control"}),
-    )
-
     had_difficulty = forms.ChoiceField(
         label="¿Tuvo alguna dificultad para responder?",
         choices=with_blank(YES_NO_CHOICES),
@@ -235,7 +227,6 @@ class TestForm(forms.Form):
     device = forms.ChoiceField(
         label="Soporte / dispositivo",
         choices=with_blank(DEVICE_CHOICES),
-        required=False,
         widget=forms.Select(attrs={"class": "form-select"}),
     )
 
