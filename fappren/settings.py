@@ -9,13 +9,18 @@ DEBUG = os.getenv("DJANGO_DEBUG", "1") == "1"
 ALLOWED_HOSTS = ["*"]
 
 CSRF_TRUSTED_ORIGINS = [
+    "https://fappren.atlantida.edu.ar",
+    "http://fappren.atlantida.edu.ar",
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+] + [
     origin.strip()
-    for origin in os.getenv(
-        "CSRF_TRUSTED_ORIGINS",
-        "http://localhost:8000,http://127.0.0.1:8000",
-    ).split(",")
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# The app runs behind an HTTPS reverse proxy in production.
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
 INSTALLED_APPS = [
     "django.contrib.auth",
