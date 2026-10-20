@@ -105,7 +105,7 @@ class Answer(models.Model):
     """
     Raw answer to one item.
 
-    Items 1-39: 1 to 4.
+    Items 1-39: 0 to 3.
     Item 40: number of selected aspects (0 to 9); scoring caps it at 3.
     """
 

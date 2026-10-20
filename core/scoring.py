@@ -36,10 +36,10 @@ INVERSE_ITEMS = {
 }
 
 OPTION_LABELS = {
-    "1": "En desacuerdo",
-    "2": "Parcialmente en desacuerdo",
-    "3": "Algo de acuerdo",
-    "4": "De acuerdo",
+    "0": "En desacuerdo",
+    "1": "Parcialmente en desacuerdo",
+    "2": "Algo de acuerdo",
+    "3": "De acuerdo",
 }
 
 ITEM_TEXTS = {
@@ -103,8 +103,8 @@ def item_score(item_number: int, raw_value):
     Convert raw answer to corrected item score.
 
     Items 1-39:
-        Direct: option - 1
-        Inverse: 4 - option
+        Direct: option (0 to 3)
+        Inverse: 3 - option
 
     Item 40:
         Count of selected aspects: 0 for none, 1, 2, or 3 for three or more.
@@ -120,13 +120,13 @@ def item_score(item_number: int, raw_value):
     if item_number == 40:
         return min(max(raw_value, 0), 3)
 
-    if raw_value < 1 or raw_value > 4:
+    if raw_value < 0 or raw_value > 3:
         return None
 
     if item_number in INVERSE_ITEMS:
-        return 4 - raw_value
+        return 3 - raw_value
 
-    return raw_value - 1
+    return raw_value
 
 
 def dimension_score(item_numbers, answers: dict):

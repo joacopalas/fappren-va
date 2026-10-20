@@ -59,10 +59,10 @@ YES_NO_CHOICES = [
 
 ITEM_OPTIONS = [
     ("", "Seleccionar"),
-    ("1", "1 - En desacuerdo"),
-    ("2", "2 - Parcialmente en desacuerdo"),
-    ("3", "3 - Algo de acuerdo"),
-    ("4", "4 - De acuerdo"),
+    ("0", "0 - En desacuerdo"),
+    ("1", "1 - Parcialmente en desacuerdo"),
+    ("2", "2 - Algo de acuerdo"),
+    ("3", "3 - De acuerdo"),
 ]
 
 ITEM_40_CHOICES = [
@@ -253,6 +253,7 @@ class TestForm(forms.Form):
         self.fields["item_40"] = forms.MultipleChoiceField(
             label=f"40. {ITEM_TEXTS[40]}",
             choices=ITEM_40_CHOICES,
+            required=False,
             help_text=(
                 "Puede seleccionar más de una opción. "
                 "Si selecciona «Otros», indique cuáles."
