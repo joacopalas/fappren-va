@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Consentimiento informado | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">Consentimiento informado</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            {% for paragraph in consent_paragraphs %}
+                <p>{{ paragraph }}</p>
+            {% endfor %}
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <div class="form-check mb-2">
+            {{ form.consent }}
+            <label class="form-check-label" for="{{ form.consent.id_for_label }}">
+                {{ form.consent.label }}
+            </label>
+        </div>
+
+        {% if form.consent.errors %}
+            <div class="text-danger mb-3">{{ form.consent.errors|striptags }}</div>
+        {% endif %}
+
+        <button type="submit" class="btn btn-primary mb-5">Continuar</button>
+    </form>
+{% endblock %}

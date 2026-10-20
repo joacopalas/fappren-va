@@ -36,20 +36,54 @@
             </div>
             <div class="card-body">
                 <p class="text-muted">
-                    Ítems 1–39: seleccione una opción de respuesta.
-                    Ítem 40: indique la cantidad de aspectos marcados (0, 1, 2 o 3 o más).
-                    Todos los ítems son obligatorios.
+                    Ítems 1–39: seleccione una opción de respuesta. Todos son obligatorios.
+                    Ítem 40: seleccione los aspectos que correspondan. Si no selecciona ninguno, se contará como 0.
                 </p>
 
                 <div class="row">
                     {% for field in form.item_fields %}
-                        <div class="col-lg-6 mb-3">
-                            {{ field.label_tag }}
-                            {{ field }}
-                            {% if field.errors %}
-                                <div class="text-danger">{{ field.errors|striptags }}</div>
-                            {% endif %}
-                        </div>
+                        {% if field.name == "item_40" %}
+                            <div class="col-12 mb-3">
+                                <div class="form-label fw-semibold">{{ field.label }}</div>
+                                {% if field.help_text %}
+                                    <div class="form-text mb-2">{{ field.help_text }}</div>
+                                {% endif %}
+                                <div class="row">
+                                    {% for checkbox in field %}
+                                        <div class="col-md-6">
+                                            <div class="form-check">
+                                                {{ checkbox.tag }}
+                                                <label class="form-check-label" for="{{ checkbox.id_for_label }}">
+                                                    {{ checkbox.choice_label }}
+                                                </label>
+                                            </div>
+                                            {% if checkbox.data.value == "otros" %}
+                                                <div class="ms-4 mt-2" id="item-40-other-wrapper">
+                                                    <label class="form-label small mb-1" for="{{ form.item_40_other.id_for_label }}">
+                                                        {{ form.item_40_other.label }}
+                                                    </label>
+                                                    {{ form.item_40_other }}
+                                                    {% if form.item_40_other.errors %}
+                                                        <div class="text-danger">{{ form.item_40_other.errors|striptags }}</div>
+                                                    {% endif %}
+                                                </div>
+                                            {% endif %}
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                                {% if field.errors %}
+                                    <div class="text-danger">{{ field.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        {% else %}
+                            <div class="col-lg-6 mb-3">
+                                {{ field.label_tag }}
+                                {{ field }}
+                                {% if field.errors %}
+                                    <div class="text-danger">{{ field.errors|striptags }}</div>
+                                {% endif %}
+                            </div>
+                        {% endif %}
                     {% endfor %}
                 </div>
             </div>
@@ -76,4 +110,29 @@
 
         <button type="submit" class="btn btn-primary mb-5">Guardar respuestas</button>
     </form>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const otherCheckbox = document.querySelector(
+                'input[name="item_40"][value="otros"]'
+            );
+            const otherWrapper = document.getElementById("item-40-other-wrapper");
+            const otherInput = document.getElementById("id_item_40_other");
+
+            if (!otherCheckbox || !otherWrapper || !otherInput) {
+                return;
+            }
+
+            const syncOtherField = function () {
+                const isSelected = otherCheckbox.checked;
+                otherWrapper.classList.toggle("d-none", !isSelected);
+                if (!isSelected) {
+                    otherInput.value = "";
+                }
+            };
+
+            otherCheckbox.addEventListener("change", syncOtherField);
+            syncOtherField();
+        });
+    </script>
 {% endblock %}

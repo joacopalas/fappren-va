@@ -82,7 +82,7 @@ ITEM_TEXTS = {
     37: "Puedo soportar la idea de que la vida tiene un fin",
     38: "Trato de evitar tener tiempo libre porque no sabría en qué ocuparlo",
     39: "Para las personas mayores lo mejor es estar con gente de su edad.",
-    40: "¿Cuál o cuáles de estos aspectos ocupan un lugar de relevancia en su vida actual? (cantidad de elecciones)",
+    40: "¿Cuál o cuáles de estos aspectos ocupan un lugar de relevancia en su vida actual?",
 }
 
 RESULTADOS_HEADERS = (
@@ -107,7 +107,7 @@ def item_score(item_number: int, raw_value):
         Inverse: 4 - option
 
     Item 40:
-        Count of selected aspects, capped at 3.
+        Count of selected aspects: 0 for none, 1, 2, or 3 for three or more.
     """
     if raw_value is None:
         return None

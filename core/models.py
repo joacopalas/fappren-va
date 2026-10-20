@@ -106,7 +106,7 @@ class Answer(models.Model):
     Raw answer to one item.
 
     Items 1-39: 1 to 4.
-    Item 40: 0 to 3 (3 means "3 o más").
+    Item 40: number of selected aspects (0 to 9); scoring caps it at 3.
     """
 
     session = models.ForeignKey(
@@ -116,6 +116,10 @@ class Answer(models.Model):
     )
     item_number = models.PositiveIntegerField()
     value = models.PositiveIntegerField()
+    # Only used by item 40, which allows multiple selected aspects.
+    selected_options = models.JSONField(default=list, blank=True)
+    # Only used by item 40 when the "Otros" option is selected.
+    other_detail = models.CharField(max_length=255, blank=True)
 
     class Meta:
         unique_together = ("session", "item_number")

@@ -5,12 +5,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse, HttpResponseForbidden
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from openpyxl import Workbook
 from openpyxl.styles import Font
 
-from .forms import RegisterForm, TestForm
+from .consent import CONSENT_TEXTS
+from .forms import ConsentForm, ITEM_40_LABELS, RegisterForm, TestForm
 from .models import Answer, TestSession, User
 from .scoring import (
     ITEM_TEXTS,
@@ -34,6 +35,19 @@ def admin_required(view_func):
         return view_func(request, *args, **kwargs)
 
     return _wrapped_view
+
+
+def item_40_labels(answer_obj):
+    if answer_obj is None:
+        return []
+
+    labels = []
+    for option in answer_obj.selected_options or []:
+        label = ITEM_40_LABELS.get(option, option)
+        if option == "otros" and answer_obj.other_detail:
+            label = f"Otros: {answer_obj.other_detail}"
+        labels.append(label)
+    return labels
 
 
 def healthz(request):
@@ -75,8 +89,46 @@ def register(request):
     return render(request, "register.html", {"form": form})
 
 
+def _consent_session_key(mode: str) -> str:
+    return f"fappren_consent_{mode}"
+
+
+def _consent_url_name(mode: str) -> str:
+    return "test_self" if mode == "self" else "test_administer"
+
+
+def _test_form_url_name(mode: str) -> str:
+    return "test_self_form" if mode == "self" else "test_administer_form"
+
+
+@login_required
+def informed_consent(request, mode: str):
+    if mode not in CONSENT_TEXTS:
+        return HttpResponseBadRequest("Modalidad inválida.")
+
+    if request.method == "POST":
+        form = ConsentForm(request.POST)
+        if form.is_valid():
+            request.session[_consent_session_key(mode)] = True
+            return redirect(_test_form_url_name(mode))
+    else:
+        form = ConsentForm()
+
+    return render(
+        request,
+        "consent.html",
+        {
+            "form": form,
+            "consent_paragraphs": CONSENT_TEXTS[mode],
+        },
+    )
+
+
 @login_required
 def take_test(request, mode: str):
+    if mode not in CONSENT_TEXTS:
+        return HttpResponseBadRequest("Modalidad inválida.")
+
     if mode == "self":
         title = "Autoadministración del test FAPPREN VA"
         initial = {
@@ -89,6 +141,13 @@ def take_test(request, mode: str):
             "mode": "administered",
             "modality": "Asistida presencial",
         }
+
+    if not request.session.get(_consent_session_key(mode)):
+        messages.warning(
+            request,
+            "Debe aceptar el consentimiento informado para continuar.",
+        )
+        return redirect(_consent_url_name(mode))
 
     if request.method == "POST":
         form = TestForm(request.POST)
@@ -116,7 +175,7 @@ def take_test(request, mode: str):
                 device=data.get("device", ""),
             )
 
-            for item_number in range(1, 41):
+            for item_number in range(1, 40):
                 raw_value = data.get(f"item_{item_number}")
                 if raw_value not in (None, ""):
                     Answer.objects.create(
@@ -124,6 +183,18 @@ def take_test(request, mode: str):
                         item_number=item_number,
                         value=int(raw_value),
                     )
+
+            item_40_selected = data.get("item_40") or []
+            item_40_other = data.get("item_40_other", "")
+            Answer.objects.create(
+                session=session_obj,
+                item_number=40,
+                value=len(item_40_selected),
+                selected_options=item_40_selected,
+                other_detail=item_40_other if "otros" in item_40_selected else "",
+            )
+
+            request.session.pop(_consent_session_key(mode), None)
 
             messages.success(request, "Respuestas guardadas correctamente.")
             return redirect("result_detail", pk=session_obj.pk)
@@ -167,17 +238,28 @@ def result_detail(request, pk: int):
     if not request.user.is_admin and session_obj.created_by_id != request.user.id:
         return HttpResponseForbidden("No tiene permiso para ver este resultado.")
 
-    answers = session_obj.answers_dict()
+    answer_objects = {
+        answer.item_number: answer for answer in session_obj.answers.all()
+    }
+    answers = {
+        item_number: answer.value for item_number, answer in answer_objects.items()
+    }
     result = compute_results(answers)
 
     answer_rows = []
     for item_number in range(1, 41):
         raw_value = answers.get(item_number)
 
-        if raw_value is None:
+        if item_number == 40:
+            answer_obj = answer_objects.get(40)
+            selected_labels = item_40_labels(answer_obj)
+            raw_display = (
+                ", ".join(selected_labels)
+                if selected_labels
+                else ("" if raw_value is None else str(raw_value))
+            )
+        elif raw_value is None:
             raw_display = ""
-        elif item_number == 40:
-            raw_display = "3 o más" if raw_value >= 3 else str(raw_value)
         else:
             raw_display = f"{raw_value} ({OPTION_LABELS.get(str(raw_value), '')})"
 
@@ -262,6 +344,7 @@ def export_results_xlsx(request):
     ]
 
     respuestas_headers += [str(item_number) for item_number in range(1, 41)]
+    respuestas_headers.append("Ítem 40 - Aspectos seleccionados")
 
     respuestas_headers += [
         "Tiempo de respuesta (minutos)",
@@ -283,7 +366,13 @@ def export_results_xlsx(request):
     worksheet_respuestas.freeze_panes = "A2"
 
     for session_obj in sessions:
-        answers = session_obj.answers_dict()
+        answer_objects = {
+            answer.item_number: answer for answer in session_obj.answers.all()
+        }
+        answers = {
+            item_number: answer.value
+            for item_number, answer in answer_objects.items()
+        }
         result = compute_results(answers)
 
         resultados_row = [session_obj.participant_code]
@@ -317,6 +406,9 @@ def export_results_xlsx(request):
 
         for item_number in range(1, 41):
             respuestas_row.append(answers.get(item_number, ""))
+
+        item_40_answer = answer_objects.get(40)
+        respuestas_row.append(", ".join(item_40_labels(item_40_answer)))
 
         # Application / modality metadata.
         respuestas_row.extend(
@@ -381,6 +473,7 @@ def export_results_xlsx(request):
     ]
 
     respuestas_widths += [6] * 40
+    respuestas_widths.append(45)  # Ítem 40 - Aspectos seleccionados
 
     respuestas_widths += [
         18,

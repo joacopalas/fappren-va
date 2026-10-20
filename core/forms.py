@@ -65,13 +65,19 @@ ITEM_OPTIONS = [
     ("4", "4 - De acuerdo"),
 ]
 
-ITEM_40_OPTIONS = [
-    ("", "Seleccionar"),
-    ("0", "0"),
-    ("1", "1"),
-    ("2", "2"),
-    ("3", "3 o más"),
+ITEM_40_CHOICES = [
+    ("familia", "Familia"),
+    ("pareja", "Pareja/s"),
+    ("aprendizaje", "Aprendizaje"),
+    ("recreacion", "Recreación"),
+    ("trabajo", "Trabajo/profesión"),
+    ("expresion_artistica", "Expresión artística"),
+    ("amistades", "Amistades"),
+    ("vida_interior", "Vida interior/creencias"),
+    ("otros", "Otros"),
 ]
+
+ITEM_40_LABELS = dict(ITEM_40_CHOICES)
 
 
 def with_blank(choices):
@@ -87,6 +93,17 @@ class RegisterForm(UserCreationForm):
         super().__init__(*args, **kwargs)
         for field in self.fields.values():
             field.widget.attrs.setdefault("class", "form-control")
+
+
+class ConsentForm(forms.Form):
+    consent = forms.BooleanField(
+        required=True,
+        label="He leído esta información y acepto participar voluntariamente",
+        error_messages={
+            "required": "Debe aceptar el consentimiento informado para continuar."
+        },
+        widget=forms.CheckboxInput(attrs={"class": "form-check-input"}),
+    )
 
 
 class TestForm(forms.Form):
@@ -122,7 +139,7 @@ class TestForm(forms.Form):
     )
 
     participant_code = forms.CharField(
-        label="Código de participante",
+        label="Código de participante (iniciales de nombre y apellido)",
         max_length=100,
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
@@ -196,7 +213,7 @@ class TestForm(forms.Form):
     )
 
     evaluator_code = forms.CharField(
-        label="Código del evaluador (solo asistida)",
+        label="Código del evaluador (solo asistida, iniciales)",
         required=False,
         widget=forms.TextInput(attrs={"class": "form-control"}),
     )
@@ -233,11 +250,27 @@ class TestForm(forms.Form):
                 widget=forms.Select(attrs={"class": "form-select"}),
             )
 
-        self.fields["item_40"] = forms.ChoiceField(
+        self.fields["item_40"] = forms.MultipleChoiceField(
             label=f"40. {ITEM_TEXTS[40]}",
-            choices=ITEM_40_OPTIONS,
-            required=True,
-            widget=forms.Select(attrs={"class": "form-select"}),
+            choices=ITEM_40_CHOICES,
+            help_text=(
+                "Puede seleccionar más de una opción. "
+                "Si selecciona «Otros», indique cuáles."
+            ),
+            widget=forms.CheckboxSelectMultiple(
+                attrs={"class": "form-check-input"}
+            ),
+        )
+        self.fields["item_40_other"] = forms.CharField(
+            label="¿Cuáles?",
+            required=False,
+            max_length=255,
+            widget=forms.TextInput(
+                attrs={
+                    "class": "form-control",
+                    "placeholder": "Especifique cuáles",
+                }
+            ),
         )
 
     @property
@@ -257,3 +290,21 @@ class TestForm(forms.Form):
         if age is not None and age < 18:
             raise forms.ValidationError("El inventario se aplica a personas de 18 años o más.")
         return age
+
+    def clean(self):
+        cleaned_data = super().clean()
+        selected_options = cleaned_data.get("item_40") or []
+        other_detail = (cleaned_data.get("item_40_other") or "").strip()
+
+        if "otros" in selected_options:
+            if not other_detail:
+                self.add_error(
+                    "item_40_other",
+                    "Indique cuáles son los otros aspectos.",
+                )
+            else:
+                cleaned_data["item_40_other"] = other_detail
+        else:
+            cleaned_data["item_40_other"] = ""
+
+        return cleaned_data
