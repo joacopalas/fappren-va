@@ -58,6 +58,23 @@ urlpatterns = [
         views.public_test_complete,
         name="public_test_complete",
     ),
+    path("groups/", views.group_list, name="group_list"),
+    path("groups/<int:pk>/", views.group_detail, name="group_detail"),
+    path(
+        "g/<uuid:token>/",
+        views.public_group_consent,
+        name="public_group_consent",
+    ),
+    path(
+        "g/<uuid:token>/form/",
+        views.public_group_test_form,
+        name="public_group_test_form",
+    ),
+    path(
+        "g/<uuid:token>/gracias/",
+        views.public_group_complete,
+        name="public_group_complete",
+    ),
     path("results/", views.results_list, name="results"),
     path("results/<int:pk>/", views.result_detail, name="result_detail"),
     path("administration/users/", views.user_management, name="user_management"),

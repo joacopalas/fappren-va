@@ -5,7 +5,13 @@
 {% block content %}
     <h1 class="h3 mb-4">{{ title }}</h1>
 
-    {% if is_public %}
+    {% if is_group %}
+        <div class="alert alert-info">
+            Este enlace corresponde al grupo «{{ group.name }}» y puede
+            utilizarse más de una vez. Al enviar sus respuestas, la persona que
+            le compartió el enlace podrá ver el resultado.
+        </div>
+    {% elif is_public %}
         <div class="alert alert-info">
             Este enlace puede utilizarse una sola vez. Al enviar sus respuestas,
             la persona que le compartió el enlace podrá ver el resultado.

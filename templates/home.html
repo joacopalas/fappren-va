@@ -47,6 +47,21 @@
         <div class="col-md-6 col-xl-4">
             <div class="card h-100">
                 <div class="card-body">
+                    <h2 class="h5 card-title">Compartir enlace con un grupo</h2>
+                    <p class="card-text">
+                        Crear un grupo con un mismo enlace para que varias
+                        personas no registradas respondan el test. Todas las
+                        respuestas quedarán asociadas a su cuenta. Se permite
+                        un grupo por usuario evaluador.
+                    </p>
+                    <a href="{% url 'group_list' %}" class="btn btn-outline-primary">Crear grupo</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6 col-xl-4">
+            <div class="card h-100">
+                <div class="card-body">
                     <h2 class="h5 card-title">Ver resultados</h2>
                     <p class="card-text">
                         {% if user.is_admin %}

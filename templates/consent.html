@@ -5,7 +5,13 @@
 {% block content %}
     <h1 class="h3 mb-4">Consentimiento informado</h1>
 
-    {% if is_public %}
+    {% if is_group %}
+        <div class="alert alert-info">
+            Este enlace corresponde al grupo «{{ group.name }}» y puede
+            utilizarse más de una vez. Lea la información y, si está de
+            acuerdo, acepte para continuar.
+        </div>
+    {% elif is_public %}
         <div class="alert alert-info">
             Este enlace es personal y de un solo uso. Lea la información y,
             si está de acuerdo, acepte para continuar.

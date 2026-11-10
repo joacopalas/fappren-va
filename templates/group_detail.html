@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+
+{% block title %}Grupo {{ group.name }} | FAPPREN VA{% endblock %}
+
+{% block content %}
+    <h1 class="h3 mb-4">Grupo: {{ group.name }}</h1>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <p>
+                Comparta este enlace con las personas del grupo. El enlace puede
+                utilizarse más de una vez: cada persona responderá su propio
+                formulario y todas las respuestas quedarán asociadas a su cuenta.
+            </p>
+
+            <label for="public-url" class="form-label">Enlace del grupo</label>
+            <div class="input-group mb-3">
+                <input
+                    type="text"
+                    class="form-control"
+                    id="public-url"
+                    value="{{ public_url }}"
+                    readonly
+                >
+                <button type="button" class="btn btn-outline-secondary" id="copy-url">
+                    Copiar
+                </button>
+            </div>
+
+            <p class="text-muted mb-0">
+                Puede consultar las respuestas recibidas en la sección Resultados.
+            </p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header">
+            Respuestas del grupo
+        </div>
+        <div class="card-body">
+            {% if sessions %}
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th>Sesión</th>
+                                <th>Código participante</th>
+                                <th>Fecha</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for session in sessions %}
+                                <tr>
+                                    <td>{{ session.pk }}</td>
+                                    <td>{{ session.participant_code }}</td>
+                                    <td>{{ session.created_at|date:"Y-m-d H:i" }}</td>
+                                    <td>
+                                        <a href="{% url 'result_detail' session.pk %}" class="btn btn-sm btn-primary">
+                                            Ver resultado
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            {% else %}
+                <p class="text-muted mb-0">
+                    Todavía no se recibieron respuestas para este grupo.
+                </p>
+            {% endif %}
+        </div>
+    </div>
+
+    <a href="{% url 'group_list' %}" class="btn btn-secondary mb-5">
+        Volver a grupos
+    </a>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            const urlInput = document.getElementById("public-url");
+            const copyButton = document.getElementById("copy-url");
+
+            if (!urlInput || !copyButton) {
+                return;
+            }
+
+            copyButton.addEventListener("click", async function () {
+                try {
+                    await navigator.clipboard.writeText(urlInput.value);
+                    copyButton.textContent = "Copiado";
+                } catch (error) {
+                    urlInput.select();
+                    document.execCommand("copy");
+                    copyButton.textContent = "Copiado";
+                }
+            });
+        });
+    </script>
+{% endblock %}

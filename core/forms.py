@@ -95,6 +95,19 @@ class RegisterForm(UserCreationForm):
             field.widget.attrs.setdefault("class", "form-control")
 
 
+class TestGroupForm(forms.Form):
+    name = forms.CharField(
+        label="Nombre del grupo",
+        max_length=150,
+        widget=forms.TextInput(
+            attrs={
+                "class": "form-control",
+                "placeholder": "Ej.: Familia",
+            }
+        ),
+    )
+
+
 class ConsentForm(forms.Form):
     consent = forms.BooleanField(
         required=True,

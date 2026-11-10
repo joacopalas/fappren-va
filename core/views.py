@@ -6,6 +6,7 @@ from django.contrib import messages
 from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
+from django.db.models import Count
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -14,8 +15,14 @@ from openpyxl import Workbook
 from openpyxl.styles import Font
 
 from .consent import CONSENT_TEXTS
-from .forms import ConsentForm, ITEM_40_LABELS, RegisterForm, TestForm
-from .models import Answer, TestInvitation, TestSession, User
+from .forms import (
+    ConsentForm,
+    ITEM_40_LABELS,
+    RegisterForm,
+    TestForm,
+    TestGroupForm,
+)
+from .models import Answer, TestGroup, TestInvitation, TestSession, User
 from .scoring import (
     ITEM_TEXTS,
     OPTION_LABELS,
@@ -116,6 +123,14 @@ def _public_started_session_key(token) -> str:
     return f"fappren_public_started_{token}"
 
 
+def _group_consent_session_key(token) -> str:
+    return f"fappren_group_consent_{token}"
+
+
+def _group_started_session_key(token) -> str:
+    return f"fappren_group_started_{token}"
+
+
 def _elapsed_minutes(request, started_key):
     started_at = request.session.get(started_key)
     if started_at is None:
@@ -144,6 +159,35 @@ def _save_answers(session_obj, data):
         selected_options=item_40_selected,
         other_detail=item_40_other if "otros" in item_40_selected else "",
     )
+
+
+@transaction.atomic
+def _create_remote_session(created_by, data, time_minutes, group=None):
+    """
+    Create a TestSession for a non-registered participant who answered
+    through a public link. The session belongs to the link's owner.
+    """
+    session_obj = TestSession.objects.create(
+        created_by=created_by,
+        mode="administered",
+        group=group,
+        participant_code=data["participant_code"],
+        age=data["age"],
+        sex=data["sex"],
+        education=data["education"],
+        marital_status=data["marital_status"],
+        occupational_status=data["occupational_status"],
+        occupation_detail=data.get("occupation_detail", ""),
+        nationality=data["nationality"],
+        time_minutes=time_minutes,
+        had_difficulty=data.get("had_difficulty", ""),
+        difficulty_detail=data.get("difficulty_detail", ""),
+        modality="Autoadministración remota",
+        received_help=data.get("received_help", ""),
+        device=data.get("device", ""),
+    )
+    _save_answers(session_obj, data)
+    return session_obj
 
 
 def _invalid_public_link(request):
@@ -283,6 +327,166 @@ def invitation_detail(request, pk: int):
     )
 
 
+@login_required
+def group_list(request):
+    existing_group = TestGroup.objects.filter(created_by=request.user).first()
+
+    if request.method == "POST":
+        if existing_group is not None:
+            messages.error(
+                request,
+                "Solo se permite un grupo por usuario evaluador.",
+            )
+            return redirect("group_list")
+
+        form = TestGroupForm(request.POST)
+        if form.is_valid():
+            with transaction.atomic():
+                # Serialize concurrent requests from the same user so the
+                # one-group limit cannot be bypassed.
+                User.objects.select_for_update().get(pk=request.user.pk)
+                if TestGroup.objects.filter(created_by=request.user).exists():
+                    messages.error(
+                        request,
+                        "Solo se permite un grupo por usuario evaluador.",
+                    )
+                    return redirect("group_list")
+
+                group = TestGroup.objects.create(
+                    created_by=request.user,
+                    name=form.cleaned_data["name"],
+                )
+
+            messages.success(request, "Grupo creado correctamente.")
+            return redirect("group_detail", pk=group.pk)
+    else:
+        form = TestGroupForm() if existing_group is None else None
+
+    groups = TestGroup.objects.select_related("created_by").annotate(
+        sessions_total=Count("sessions")
+    )
+    if not request.user.is_admin:
+        groups = groups.filter(created_by=request.user)
+
+    return render(
+        request,
+        "groups.html",
+        {
+            "groups": groups,
+            "form": form,
+            "existing_group": existing_group,
+        },
+    )
+
+
+@login_required
+def group_detail(request, pk: int):
+    group = get_object_or_404(TestGroup, pk=pk)
+
+    if not request.user.is_admin and group.created_by_id != request.user.id:
+        return HttpResponseForbidden("No tiene permiso para ver este grupo.")
+
+    public_url = request.build_absolute_uri(
+        reverse("public_group_consent", args=[group.token])
+    )
+    sessions = group.sessions.select_related("created_by").order_by("-created_at")
+
+    return render(
+        request,
+        "group_detail.html",
+        {
+            "group": group,
+            "public_url": public_url,
+            "sessions": sessions,
+        },
+    )
+
+
+def public_group_consent(request, token):
+    group = TestGroup.objects.filter(token=token).first()
+    if group is None:
+        return _invalid_public_link(request)
+
+    if request.method == "POST":
+        form = ConsentForm(request.POST)
+        if form.is_valid():
+            request.session[_group_consent_session_key(token)] = True
+            return redirect("public_group_test_form", token=token)
+    else:
+        form = ConsentForm()
+
+    return render(
+        request,
+        "consent.html",
+        {
+            "form": form,
+            "consent_paragraphs": CONSENT_TEXTS["administered"],
+            "is_public": True,
+            "is_group": True,
+            "group": group,
+        },
+    )
+
+
+def public_group_test_form(request, token):
+    group = TestGroup.objects.filter(token=token).first()
+    if group is None:
+        return _invalid_public_link(request)
+
+    if not request.session.get(_group_consent_session_key(token)):
+        messages.warning(
+            request,
+            "Debe aceptar el consentimiento informado para continuar.",
+        )
+        return redirect("public_group_consent", token=token)
+
+    if request.method == "POST":
+        form = TestForm(request.POST, public=True)
+        if form.is_valid():
+            data = form.cleaned_data
+            time_minutes = _elapsed_minutes(
+                request, _group_started_session_key(token)
+            )
+
+            _create_remote_session(
+                group.created_by, data, time_minutes, group=group
+            )
+
+            request.session.pop(_group_consent_session_key(token), None)
+            request.session.pop(_group_started_session_key(token), None)
+
+            return redirect("public_group_complete", token=token)
+    else:
+        request.session[_group_started_session_key(token)] = (
+            timezone.now().timestamp()
+        )
+        form = TestForm(public=True, initial={"mode": "administered"})
+
+    return render(
+        request,
+        "test_form.html",
+        {
+            "form": form,
+            "title": f"Test FAPPREN VA - {group.name}",
+            "is_public": True,
+            "is_group": True,
+            "group": group,
+        },
+    )
+
+
+def public_group_complete(request, token):
+    group = TestGroup.objects.filter(token=token).first()
+    if group is None:
+        return _invalid_public_link(request)
+
+    return render(
+        request,
+        "public_group_complete.html",
+        {"group": group},
+    )
+
+
 def public_consent(request, token):
     invitation = TestInvitation.objects.filter(
         token=token, used_at__isnull=True
@@ -342,25 +546,9 @@ def public_test_form(request, token):
 
                 invitation.refresh_from_db()
 
-                session_obj = TestSession.objects.create(
-                    created_by=invitation.created_by,
-                    mode="administered",
-                    participant_code=data["participant_code"],
-                    age=data["age"],
-                    sex=data["sex"],
-                    education=data["education"],
-                    marital_status=data["marital_status"],
-                    occupational_status=data["occupational_status"],
-                    occupation_detail=data.get("occupation_detail", ""),
-                    nationality=data["nationality"],
-                    time_minutes=time_minutes,
-                    had_difficulty=data.get("had_difficulty", ""),
-                    difficulty_detail=data.get("difficulty_detail", ""),
-                    modality="Autoadministración remota",
-                    received_help=data.get("received_help", ""),
-                    device=data.get("device", ""),
+                session_obj = _create_remote_session(
+                    invitation.created_by, data, time_minutes
                 )
-                _save_answers(session_obj, data)
 
                 invitation.session = session_obj
                 invitation.save(update_fields=["session"])
@@ -403,7 +591,7 @@ def public_test_complete(request, token):
 @login_required
 def results_list(request):
     sessions = TestSession.objects.prefetch_related("answers").select_related(
-        "created_by", "invitation"
+        "created_by", "invitation", "group"
     )
 
     if not request.user.is_admin:
